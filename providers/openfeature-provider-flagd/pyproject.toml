@@ -74,3 +74,8 @@ omit = [
   "src/openfeature/contrib/provider/flagd/proto/*",
   "tests/**",
 ]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
