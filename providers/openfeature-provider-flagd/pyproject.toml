@@ -63,6 +63,7 @@ output_path = "src"
 exclude = [
   ".gitignore",
   "schemas",
+  "docker-compose.yaml",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -73,9 +74,4 @@ omit = [
   # exclude generated files
   "src/openfeature/contrib/provider/flagd/proto/*",
   "tests/**",
-]
-
-[tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
 ]
