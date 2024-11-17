@@ -5,13 +5,16 @@ import time
 import typing
 
 import grpc
+from schemas.protobuf.flagd.sync.v1 import (  # type:ignore[import-not-found]
+    sync_pb2,
+    sync_pb2_grpc,
+)
 
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.event import ProviderEventDetails
 from openfeature.exception import ErrorCode, ParseError, ProviderNotReadyError
 
 from ....config import Config
-from ....proto.flagd.sync.v1 import sync_pb2, sync_pb2_grpc
 from ..connector import FlagStateConnector
 from ..flags import FlagStore
 
@@ -29,9 +32,9 @@ class GrpcWatcher(FlagStateConnector):
         emit_provider_error: typing.Callable[[ProviderEventDetails], None],
     ):
         self.flag_store = flag_store
-        channel_factory = grpc.secure_channel if config.tls else grpc.insecure_channel
-        self.channel = channel_factory(f"{config.host}:{config.port}")
-        self.stub = sync_pb2_grpc.FlagSyncServiceStub(self.channel)
+        self.config = config
+
+        self.stub, self.channel = self.create_stub()
         self.timeout = config.timeout
         self.retry_backoff_seconds = config.retry_backoff_seconds
         self.selector = config.selector
@@ -39,6 +42,22 @@ class GrpcWatcher(FlagStateConnector):
         self.emit_provider_error = emit_provider_error
 
         self.connected = False
+
+    def create_stub(
+        self,
+    ) -> typing.Tuple[sync_pb2_grpc.FlagSyncServiceStub, grpc.Channel]:
+        config = self.config
+        channel_factory = grpc.secure_channel if config.tls else grpc.insecure_channel
+        channel = channel_factory(
+            f"{config.host}:{config.port}",
+            options=(
+                ("grpc.max_reconnect_backoff_ms", 1000),
+                ("grpc.initial_reconnect_backoff_ms", 1000),
+                ("grpc.keepalive_time_ms", 1000),
+            ),
+        )
+        stub = sync_pb2_grpc.FlagSyncServiceStub(channel)
+        return stub, channel
 
     def initialize(self, context: EvaluationContext) -> None:
         self.active = True
@@ -60,13 +79,13 @@ class GrpcWatcher(FlagStateConnector):
 
     def shutdown(self) -> None:
         self.active = False
+        self.channel.close()
 
     def sync_flags(self) -> None:
-        request = sync_pb2.SyncFlagsRequest(selector=self.selector)  # type:ignore[attr-defined]
-
         retry_delay = self.retry_backoff_seconds
         while self.active:
             try:
+                request = sync_pb2.SyncFlagsRequest(selector=self.selector)
                 logger.debug("Setting up gRPC sync flags connection")
                 for flag_rsp in self.stub.SyncFlags(request):
                     flag_str = flag_rsp.flag_configuration
@@ -89,6 +108,9 @@ class GrpcWatcher(FlagStateConnector):
                         return
             except grpc.RpcError as e:
                 logger.error(f"SyncFlags stream error, {e.code()=} {e.details()=}")
+                if e.code() == grpc.StatusCode.UNAVAILABLE:
+                    self.stub, self.channel = self.create_stub()
+
             except json.JSONDecodeError:
                 logger.exception(
                     f"Could not parse JSON flag data from SyncFlags endpoint: {flag_str=}"
@@ -107,4 +129,4 @@ class GrpcWatcher(FlagStateConnector):
             )
             logger.info(f"gRPC sync disconnected, reconnecting in {retry_delay}s")
             time.sleep(retry_delay)
-            retry_delay = min(2 * retry_delay, self.MAX_BACK_OFF)
+            retry_delay = min(2, self.MAX_BACK_OFF)

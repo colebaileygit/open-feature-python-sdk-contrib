@@ -20,7 +20,7 @@ from openfeature.flag_evaluation import FlagResolutionDetails
 
 from ..config import Config
 from ..flag_type import FlagType
-from . import AbstractResolver
+from .protocol import AbstractResolver
 
 T = typing.TypeVar("T")
 

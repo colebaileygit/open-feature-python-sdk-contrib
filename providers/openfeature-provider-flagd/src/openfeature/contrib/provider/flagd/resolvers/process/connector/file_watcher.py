@@ -44,8 +44,8 @@ class FileWatcher(FlagStateConnector):
 
         # Let this throw exceptions so that provider status is set correctly
         try:
-            self._load_data()
             self.should_emit_ready_on_success = True
+            self._load_data()
         except Exception as err:
             raise ProviderNotReadyError from err
 

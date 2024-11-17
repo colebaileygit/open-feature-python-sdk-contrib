@@ -6,13 +6,13 @@ from os import listdir
 import pytest
 import yaml
 from pytest_bdd import given, scenario, scenarios
-from tests.e2e.steps import wait_for
 
 from openfeature import api
 from openfeature.client import OpenFeatureClient
 from openfeature.contrib.provider.flagd import FlagdProvider
 from openfeature.contrib.provider.flagd.config import ResolverType
 from openfeature.provider import ProviderStatus
+from tests.e2e.steps import wait_for
 
 KEY_EVALUATORS = "$evaluators"
 
@@ -21,7 +21,7 @@ KEY_FLAGS = "flags"
 MERGED_FILE = "merged_file"
 
 
-@pytest.fixture(params=["json", "yaml"], scope="module")
+@pytest.fixture(params=["json", "yaml"], autouse=True)
 def file_name(request):
     extension = request.param
     result = {KEY_FLAGS: {}, KEY_EVALUATORS: {}}
@@ -52,33 +52,20 @@ def file_name(request):
 
 
 @pytest.fixture(autouse=True, scope="module")
-def client_name() -> str:
-    return "in-process"
-
-
-@pytest.fixture(autouse=True, scope="module")
-def resolver_type() -> ResolverType:
-    return ResolverType.IN_PROCESS
-
-
-@pytest.fixture(autouse=True, scope="module")
-def setup(request, client_name, file_name, resolver_type):
-    """nothing to boot"""
-    api.set_provider(
-        FlagdProvider(
-            resolver_type=resolver_type,
-            offline_flag_source_path=file_name.name,
-            timeout=0.5,
-            retry_backoff_seconds=0.1,
-        ),
-        client_name,
-    )
+def setup(request):
+    pass
 
 
 @given("a flagd provider is set", target_fixture="client")
 @given("a provider is registered", target_fixture="client")
-def setup_provider(client_name) -> OpenFeatureClient:
-    client = api.get_client(client_name)
+def setup_provider(setup, file_name) -> OpenFeatureClient:
+    api.set_provider(
+        FlagdProvider(
+            resolver_type=ResolverType.IN_PROCESS,
+            offline_flag_source_path=file_name.name,
+        )
+    )
+    client = api.get_client()
     wait_for(lambda: client.get_provider_status() == ProviderStatus.READY)
     return client
 

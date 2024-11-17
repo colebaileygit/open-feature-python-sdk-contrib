@@ -73,8 +73,6 @@ class InProcessResolver:
         evaluation_context: typing.Optional[EvaluationContext] = None,
     ) -> FlagResolutionDetails[float]:
         result = self._resolve(key, default_value, evaluation_context)
-        if not isinstance(result.value, float):
-            result.value = float(result.value)
         return result
 
     def resolve_integer_details(
@@ -84,8 +82,6 @@ class InProcessResolver:
         evaluation_context: typing.Optional[EvaluationContext] = None,
     ) -> FlagResolutionDetails[int]:
         result = self._resolve(key, default_value, evaluation_context)
-        if not isinstance(result.value, int):
-            result.value = int(result.value)
         return result
 
     def resolve_object_details(

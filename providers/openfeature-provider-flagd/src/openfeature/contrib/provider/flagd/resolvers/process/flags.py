@@ -72,6 +72,10 @@ class Flag:
             data["default_variant"] = data["defaultVariant"]
             del data["defaultVariant"]
 
+        if "source" in data:
+            del data["source"]
+        if "selector" in data:
+            del data["selector"]
         try:
             flag = cls(key=key, **data)
             return flag

@@ -6,17 +6,17 @@ from openfeature.contrib.provider.flagd.config import ResolverType
 
 @pytest.fixture(autouse=True, scope="module")
 def client_name() -> str:
-    return "rpc"
+    return "in-process"
 
 
 @pytest.fixture(autouse=True, scope="module")
 def resolver_type() -> ResolverType:
-    return ResolverType.GRPC
+    return ResolverType.IN_PROCESS
 
 
 @pytest.fixture(autouse=True, scope="module")
 def port():
-    return 8013
+    return 8015
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -24,8 +24,8 @@ def image():
     return "ghcr.io/open-feature/flagd-testbed:v0.5.13"
 
 
-@pytest.mark.skip(reason="Eventing not implemented")
-@scenario("../../test-harness/gherkin/flagd.feature", "Flag change event")
+@pytest.mark.skip(reason="0 float might be a int")
+@scenario("../../test-harness/gherkin/flagd.feature", "Resolves float zero value")
 def test_flag_change_event():
     """not implemented"""
 
