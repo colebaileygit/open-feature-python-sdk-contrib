@@ -69,13 +69,21 @@ class FlagdProvider(AbstractProvider):
 
     def setup_resolver(self) -> AbstractResolver:
         if self.config.resolver_type == ResolverType.GRPC:
-            return GrpcResolver(self.config)
+            return GrpcResolver(
+                self.config,
+                self.emit_provider_ready,
+                self.emit_provider_error,
+                self.emit_provider_configuration_changed,
+            )
         elif self.config.resolver_type == ResolverType.IN_PROCESS:
             return InProcessResolver(self.config, self)
         else:
             raise ValueError(
                 f"`resolver_type` parameter invalid: {self.config.resolver_type}"
             )
+
+    def initialize(self, evaluation_context: EvaluationContext) -> None:
+        self.resolver.initialize(evaluation_context)
 
     def shutdown(self) -> None:
         if self.resolver:

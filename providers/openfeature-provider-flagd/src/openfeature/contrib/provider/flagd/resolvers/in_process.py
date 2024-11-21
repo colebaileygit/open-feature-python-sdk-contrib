@@ -3,7 +3,7 @@ import typing
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.exception import FlagNotFoundError, ParseError
 from openfeature.flag_evaluation import FlagResolutionDetails, Reason
-from openfeature.provider.provider import AbstractProvider
+from openfeature.provider import AbstractProvider
 
 from ..config import Config
 from .process.file_watcher import FileWatcherFlagStore
@@ -25,6 +25,9 @@ class InProcessResolver:
             self.provider,
             self.config.offline_poll_interval_seconds,
         )
+
+    def initialize(self, evaluation_context: EvaluationContext) -> None:
+        pass
 
     def shutdown(self) -> None:
         self.flag_store.shutdown()

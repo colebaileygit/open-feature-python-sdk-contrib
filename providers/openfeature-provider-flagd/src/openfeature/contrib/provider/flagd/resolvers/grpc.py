@@ -1,3 +1,6 @@
+import logging
+import threading
+import time
 import typing
 
 import grpc
@@ -9,7 +12,9 @@ from schemas.protobuf.flagd.evaluation.v1 import (  # type:ignore[import-not-fou
 )
 
 from openfeature.evaluation_context import EvaluationContext
+from openfeature.event import ProviderEventDetails
 from openfeature.exception import (
+    ErrorCode,
     FlagNotFoundError,
     GeneralError,
     InvalidContextError,
@@ -23,18 +28,94 @@ from ..flag_type import FlagType
 
 T = typing.TypeVar("T")
 
+logger = logging.getLogger("openfeature.contrib")
+
 
 class GrpcResolver:
-    def __init__(self, config: Config):
+    MAX_BACK_OFF = 120
+
+    def __init__(
+        self,
+        config: Config,
+        emit_provider_ready: typing.Callable[[ProviderEventDetails], None],
+        emit_provider_error: typing.Callable[[ProviderEventDetails], None],
+        emit_provider_configuration_changed: typing.Callable[
+            [ProviderEventDetails], None
+        ],
+    ):
         self.config = config
+        self.emit_provider_ready = emit_provider_ready
+        self.emit_provider_error = emit_provider_error
+        self.emit_provider_configuration_changed = emit_provider_configuration_changed
         channel_factory = (
             grpc.secure_channel if self.config.tls else grpc.insecure_channel
         )
         self.channel = channel_factory(f"{self.config.host}:{self.config.port}")
         self.stub = evaluation_pb2_grpc.ServiceStub(self.channel)
+        self.retry_backoff_seconds = 0.1
+        self.connected = False
+
+    def initialize(self, evaluation_context: EvaluationContext) -> None:
+        self.connect()
 
     def shutdown(self) -> None:
+        self.active = False
         self.channel.close()
+
+    def connect(self) -> None:
+        self.active = True
+        self.thread = threading.Thread(
+            target=self.listen, daemon=True, name="FlagdGrpcServiceWorkerThread"
+        )
+        self.thread.start()
+
+    def listen(self) -> None:
+        retry_delay = self.retry_backoff_seconds
+        while self.active:
+            request = evaluation_pb2.EventStreamRequest()  # type:ignore[attr-defined]
+            try:
+                logger.debug("Setting up gRPC sync flags connection")
+                for message in self.stub.EventStream(request):
+                    if message.type == "provider_ready":
+                        if not self.connected:
+                            self.emit_provider_ready(
+                                ProviderEventDetails(
+                                    message="gRPC sync connection established"
+                                )
+                            )
+                            self.connected = True
+                            # reset retry delay after successsful read
+                            retry_delay = self.retry_backoff_seconds
+
+                    elif message.type == "configuration_change":
+                        data = MessageToDict(message)["data"]
+                        self.handle_changed_flags(data)
+
+                    if not self.active:
+                        logger.info("Terminating gRPC sync thread")
+                        return
+            except grpc.RpcError as e:
+                logger.error(f"SyncFlags stream error, {e.code()=} {e.details()=}")
+            except ParseError:
+                logger.exception(
+                    f"Could not parse flag data using flagd syntax: {message=}"
+                )
+
+            self.connected = False
+            self.emit_provider_error(
+                ProviderEventDetails(
+                    message=f"gRPC sync disconnected, reconnecting in {retry_delay}s",
+                    error_code=ErrorCode.GENERAL,
+                )
+            )
+            logger.info(f"gRPC sync disconnected, reconnecting in {retry_delay}s")
+            time.sleep(retry_delay)
+            retry_delay = min(2 * retry_delay, self.MAX_BACK_OFF)
+
+    def handle_changed_flags(self, data: typing.Any) -> None:
+        changed_flags = list(data["flags"].keys())
+
+        self.emit_provider_configuration_changed(ProviderEventDetails(changed_flags))
 
     def resolve_boolean_details(
         self,

@@ -6,7 +6,7 @@ from openfeature.contrib.provider.flagd.config import ResolverType
 
 @pytest.fixture(autouse=True, scope="module")
 def client_name() -> str:
-    return "rpc"
+    return "rpc-reconnect"
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -21,11 +21,9 @@ def port():
 
 @pytest.fixture(autouse=True, scope="module")
 def image():
-    return "ghcr.io/open-feature/flagd-testbed:v0.5.13"
+    return "ghcr.io/open-feature/flagd-testbed-unstable:v0.5.13"
 
 
 scenarios(
-    "../../test-harness/gherkin/flagd.feature",
-    "../../test-harness/gherkin/flagd-json-evaluator.feature",
-    "../../spec/specification/assets/gherkin/evaluation.feature",
+    "../../test-harness/gherkin/flagd-reconnect.feature",
 )
