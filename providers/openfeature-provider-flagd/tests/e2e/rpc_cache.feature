@@ -36,9 +36,9 @@ Feature: Flag evaluation with Caching
     When a string flag with key "changing-flag" is evaluated with details
     When a PROVIDER_CONFIGURATION_CHANGED handler is added
     And a flag with key "changing-flag" is modified
-    Then the resolved string details reason should be "STATIC"
-    Then the resolved string details reason should be "CACHED"
+    Then the returned reason should be "STATIC"
+    Then the returned reason should be "CACHED"
     Then the PROVIDER_CONFIGURATION_CHANGED handler must run
     And the event details must indicate "changing-flag" was altered
-    Then the resolved string details reason should be "STATIC"
-    Then the resolved string details reason should be "CACHED"
+    Then the returned reason should be "STATIC"
+    Then the returned reason should be "CACHED"
