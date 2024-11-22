@@ -87,6 +87,16 @@ def setup_key_and_default(
 
 @when(
     parsers.cfparse(
+        'a string flag with key "{key}" is evaluated with details"',
+    ),
+    target_fixture="key_and_default",
+)
+def setup_key_without_default(key: str) -> typing.Tuple[str, JsonPrimitive]:
+    return setup_key_and_default(key, "")
+
+
+@when(
+    parsers.cfparse(
         'an object flag with key "{key}" is evaluated with a null default value',
     ),
     target_fixture="key_and_default",
@@ -661,3 +671,29 @@ def flagd_init(client: OpenFeatureClient, event_handles, error_handles):
 @then("an error should be indicated within the configured deadline")
 def flagd_error(error_handles):
     assert_handlers(error_handles, ProviderEvent.PROVIDER_ERROR)
+
+
+@when(
+    parsers.cfparse(
+        'a string flag with key "{key}" is evaluated with details',
+    ),
+    target_fixture="key",
+)
+def setup_key(key: str) -> str:
+    return key
+
+
+@then(
+    parsers.cfparse(
+        'the resolved string details reason should be "{reason}"',
+        extra_types={"bool": to_bool},
+    )
+)
+def assert_reason_for_flag(
+    client: OpenFeatureClient,
+    key: str,
+    reason: str,
+    evaluation_context: EvaluationContext,
+):
+    evaluation_result = client.get_string_details(key, "fallback", evaluation_context)
+    assert_equal(evaluation_result.reason, reason)

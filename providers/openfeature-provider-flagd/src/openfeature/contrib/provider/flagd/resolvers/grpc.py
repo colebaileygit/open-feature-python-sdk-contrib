@@ -4,6 +4,7 @@ import time
 import typing
 
 import grpc
+from cachebox import LRUCache  # type:ignore[import-not-found]
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import Struct
 from schemas.protobuf.flagd.evaluation.v1 import (  # type:ignore[import-not-found]
@@ -21,9 +22,9 @@ from openfeature.exception import (
     ParseError,
     TypeMismatchError,
 )
-from openfeature.flag_evaluation import FlagResolutionDetails
+from openfeature.flag_evaluation import FlagResolutionDetails, Reason
 
-from ..config import Config
+from ..config import CacheType, Config
 from ..flag_type import FlagType
 
 T = typing.TypeVar("T")
@@ -55,12 +56,20 @@ class GrpcResolver:
         self.retry_backoff_seconds = 0.1
         self.connected = False
 
+        self._cache = (
+            LRUCache(maxsize=self.config.max_cache_size)
+            if self.config.cache_type == CacheType.LRU
+            else None
+        )
+
     def initialize(self, evaluation_context: EvaluationContext) -> None:
         self.connect()
 
     def shutdown(self) -> None:
         self.active = False
         self.channel.close()
+        if self._cache:
+            self._cache.clear()
 
     def connect(self) -> None:
         self.active = True
@@ -72,7 +81,7 @@ class GrpcResolver:
     def listen(self) -> None:
         retry_delay = self.retry_backoff_seconds
         while self.active:
-            request = evaluation_pb2.EventStreamRequest()  # type:ignore[attr-defined]
+            request = evaluation_pb2.EventStreamRequest()
             try:
                 logger.debug("Setting up gRPC sync flags connection")
                 for message in self.stub.EventStream(request):
@@ -114,6 +123,10 @@ class GrpcResolver:
 
     def handle_changed_flags(self, data: typing.Any) -> None:
         changed_flags = list(data["flags"].keys())
+
+        if self._cache:
+            for flag in changed_flags:
+                self._cache.pop(flag)
 
         self.emit_provider_configuration_changed(ProviderEventDetails(changed_flags))
 
@@ -157,13 +170,18 @@ class GrpcResolver:
     ) -> FlagResolutionDetails[typing.Union[dict, list]]:
         return self._resolve(key, FlagType.OBJECT, default_value, evaluation_context)
 
-    def _resolve(  # noqa: PLR0915
+    def _resolve(  # noqa: PLR0915 C901
         self,
         flag_key: str,
         flag_type: FlagType,
         default_value: T,
         evaluation_context: typing.Optional[EvaluationContext],
     ) -> FlagResolutionDetails[T]:
+        if self._cache is not None and flag_key in self._cache:
+            cached_flag: FlagResolutionDetails[T] = self._cache[flag_key]
+            cached_flag.reason = Reason.CACHED
+            return cached_flag
+
         context = self._convert_context(evaluation_context)
         call_args = {"timeout": self.config.timeout}
         try:
@@ -215,11 +233,16 @@ class GrpcResolver:
             raise GeneralError(message) from e
 
         # Got a valid flag and valid type. Return it.
-        return FlagResolutionDetails(
+        result = FlagResolutionDetails(
             value=value,
             reason=response.reason,
             variant=response.variant,
         )
+
+        if response.reason == Reason.STATIC and self._cache is not None:
+            self._cache.insert(flag_key, result)
+
+        return result
 
     def _convert_context(
         self, evaluation_context: typing.Optional[EvaluationContext]
