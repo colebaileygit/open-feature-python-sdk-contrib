@@ -24,12 +24,6 @@ def image():
     return "ghcr.io/open-feature/flagd-testbed-unstable:v0.5.13"
 
 
-# @pytest.mark.skip(reason="Reconnect seems to be flacky")
-# @scenario("../../test-harness/gherkin/flagd-reconnect.feature", "Provider reconnection")
-# def test_flag_change_event():
-#     """not implemented"""
-
-
 scenarios(
     "../../test-harness/gherkin/flagd-reconnect.feature",
 )

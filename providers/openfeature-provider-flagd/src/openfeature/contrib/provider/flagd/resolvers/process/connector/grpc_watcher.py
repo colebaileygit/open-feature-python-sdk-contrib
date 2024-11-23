@@ -35,8 +35,9 @@ class GrpcWatcher(FlagStateConnector):
         self.config = config
 
         self.stub, self.channel = self.create_stub()
-        self.timeout = config.timeout
-        self.retry_backoff_seconds = config.retry_backoff_seconds
+        self.retry_backoff_seconds = config.retry_backoff_ms * 0.001
+        self.streamline_deadline_seconds = config.stream_deadline_ms * 0.001
+        self.deadline = config.deadline * 0.001
         self.selector = config.selector
         self.emit_provider_ready = emit_provider_ready
         self.emit_provider_error = emit_provider_error
@@ -50,11 +51,7 @@ class GrpcWatcher(FlagStateConnector):
         channel_factory = grpc.secure_channel if config.tls else grpc.insecure_channel
         channel = channel_factory(
             f"{config.host}:{config.port}",
-            options=(
-                ("grpc.max_reconnect_backoff_ms", 1000),
-                ("grpc.initial_reconnect_backoff_ms", 1000),
-                ("grpc.keepalive_time_ms", 1000),
-            ),
+            options=(("grpc.keepalive_time_ms", config.keep_alive_time),),
         )
         stub = sync_pb2_grpc.FlagSyncServiceStub(channel)
         return stub, channel
@@ -67,8 +64,8 @@ class GrpcWatcher(FlagStateConnector):
         self.thread.start()
 
         ## block until ready or deadline reached
-        deadline = self.timeout + time.time()
-        while not self.connected and time.time() < deadline:
+        timeout = self.deadline + time.time()
+        while not self.connected and time.time() < timeout:
             time.sleep(0.05)
         logger.debug("Finished blocking gRPC state initialization")
 
@@ -83,11 +80,16 @@ class GrpcWatcher(FlagStateConnector):
 
     def sync_flags(self) -> None:
         retry_delay = self.retry_backoff_seconds
+        call_args = (
+            {"timeout": self.streamline_deadline_seconds}
+            if self.streamline_deadline_seconds > 0
+            else {}
+        )
         while self.active:
             try:
                 request = sync_pb2.SyncFlagsRequest(selector=self.selector)
                 logger.debug("Setting up gRPC sync flags connection")
-                for flag_rsp in self.stub.SyncFlags(request):
+                for flag_rsp in self.stub.SyncFlags(request, **call_args):
                     flag_str = flag_rsp.flag_configuration
                     logger.debug(
                         f"Received flag configuration - {abs(hash(flag_str)) % (10 ** 8)}"
@@ -110,7 +112,6 @@ class GrpcWatcher(FlagStateConnector):
                 logger.error(f"SyncFlags stream error, {e.code()=} {e.details()=}")
                 if e.code() == grpc.StatusCode.UNAVAILABLE:
                     self.stub, self.channel = self.create_stub()
-
             except json.JSONDecodeError:
                 logger.exception(
                     f"Could not parse JSON flag data from SyncFlags endpoint: {flag_str=}"
@@ -129,4 +130,4 @@ class GrpcWatcher(FlagStateConnector):
             )
             logger.info(f"gRPC sync disconnected, reconnecting in {retry_delay}s")
             time.sleep(retry_delay)
-            retry_delay = min(2, self.MAX_BACK_OFF)
+            retry_delay = min(1.1 * retry_delay, self.MAX_BACK_OFF)

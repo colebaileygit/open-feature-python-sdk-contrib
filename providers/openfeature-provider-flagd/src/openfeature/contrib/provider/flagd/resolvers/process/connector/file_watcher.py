@@ -11,6 +11,7 @@ from openfeature.evaluation_context import EvaluationContext
 from openfeature.event import ProviderEventDetails
 from openfeature.exception import ParseError, ProviderNotReadyError
 
+from ....config import Config
 from ..connector import FlagStateConnector
 from ..flags import FlagStore
 
@@ -20,16 +21,21 @@ logger = logging.getLogger("openfeature.contrib")
 class FileWatcher(FlagStateConnector):
     def __init__(
         self,
-        file_path: str,
+        config: Config,
         flag_store: FlagStore,
         emit_provider_ready: typing.Callable[[ProviderEventDetails], None],
         emit_provider_error: typing.Callable[[ProviderEventDetails], None],
-        poll_interval_seconds: float = 1.0,
     ):
-        self.file_path = file_path
+        if config.offline_flag_source_path is None:
+            raise ValueError(
+                f"`config.offline_flag_source_path` parameter invalid: {config.offline_flag_source_path }"
+            )
+        else:
+            self.file_path = config.offline_flag_source_path
+
         self.emit_provider_ready = emit_provider_ready
         self.emit_provider_error = emit_provider_error
-        self.poll_interval_seconds = poll_interval_seconds
+        self.deadline_seconds = config.deadline * 0.001
 
         self.last_modified = 0.0
         self.flag_store = flag_store
@@ -54,7 +60,7 @@ class FileWatcher(FlagStateConnector):
 
     def refresh_file(self) -> None:
         while self.active:
-            time.sleep(self.poll_interval_seconds)
+            time.sleep(self.deadline_seconds)
             logger.debug("checking for new flag store contents from file")
             self.safe_load_data()
 

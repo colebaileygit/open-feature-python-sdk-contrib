@@ -28,11 +28,9 @@ We use `pytest` for our unit testing, making use of `parametrized` to inject cas
 
 The Flagd provider utilizes the [gherkin integration tests](https://github.com/open-feature/test-harness/blob/main/features/evaluation.feature) to validate against a live, seeded Flagd instance.
 
-To run the integration tests:
+To run the integration tests you need to have a container runtime, like docker, ranger, etc. installed.
 
 ```bash
-cd providers/openfeature-provider-flagd
-docker-compose up -d  # this runs the flagd sidecars
 hatch run test
 ```
 

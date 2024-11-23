@@ -20,6 +20,7 @@ from openfeature.exception import (
     GeneralError,
     InvalidContextError,
     ParseError,
+    ProviderNotReadyError,
     TypeMismatchError,
 )
 from openfeature.flag_evaluation import FlagResolutionDetails, Reason
@@ -49,12 +50,11 @@ class GrpcResolver(AbstractResolver):
         self.emit_provider_ready = emit_provider_ready
         self.emit_provider_error = emit_provider_error
         self.emit_provider_configuration_changed = emit_provider_configuration_changed
-        channel_factory = (
-            grpc.secure_channel if self.config.tls else grpc.insecure_channel
-        )
-        self.channel = channel_factory(f"{self.config.host}:{self.config.port}")
-        self.stub = evaluation_pb2_grpc.ServiceStub(self.channel)
-        self.retry_backoff_seconds = 0.1
+
+        self.stub, self.channel = self.create_stub()
+        self.retry_backoff_seconds = config.retry_backoff_ms * 0.001
+        self.streamline_deadline_seconds = config.stream_deadline_ms * 0.001
+        self.deadline = config.deadline * 0.001
         self.connected = False
 
         self._cache = (
@@ -62,6 +62,18 @@ class GrpcResolver(AbstractResolver):
             if self.config.cache_type == CacheType.LRU
             else None
         )
+
+    def create_stub(
+        self,
+    ) -> typing.Tuple[evaluation_pb2_grpc.ServiceStub, grpc.Channel]:
+        config = self.config
+        channel_factory = grpc.secure_channel if config.tls else grpc.insecure_channel
+        channel = channel_factory(
+            f"{config.host}:{config.port}",
+            options=(("grpc.keepalive_time_ms", config.keep_alive_time),),
+        )
+        stub = evaluation_pb2_grpc.ServiceStub(channel)
+        return stub, channel
 
     def initialize(self, evaluation_context: EvaluationContext) -> None:
         self.connect()
@@ -79,13 +91,30 @@ class GrpcResolver(AbstractResolver):
         )
         self.thread.start()
 
+        ## block until ready or deadline reached
+        timeout = self.deadline + time.time()
+        while not self.connected and time.time() < timeout:
+            time.sleep(0.05)
+        logger.debug("Finished blocking gRPC state initialization")
+
+        if not self.connected:
+            raise ProviderNotReadyError(
+                "Blocking init finished before data synced. Consider increasing startup deadline to avoid inconsistent evaluations."
+            )
+
     def listen(self) -> None:
         retry_delay = self.retry_backoff_seconds
+
+        call_args = (
+            {"timeout": self.streamline_deadline_seconds}
+            if self.streamline_deadline_seconds > 0
+            else {}
+        )
         while self.active:
             request = evaluation_pb2.EventStreamRequest()
             try:
                 logger.debug("Setting up gRPC sync flags connection")
-                for message in self.stub.EventStream(request):
+                for message in self.stub.EventStream(request, **call_args):
                     if message.type == "provider_ready":
                         if not self.connected:
                             self.emit_provider_ready(
@@ -106,6 +135,8 @@ class GrpcResolver(AbstractResolver):
                         return
             except grpc.RpcError as e:
                 logger.error(f"SyncFlags stream error, {e.code()=} {e.details()=}")
+                if e.code() == grpc.StatusCode.UNAVAILABLE:
+                    self.stub, self.channel = self.create_stub()
             except ParseError:
                 logger.exception(
                     f"Could not parse flag data using flagd syntax: {message=}"
@@ -120,7 +151,7 @@ class GrpcResolver(AbstractResolver):
             )
             logger.info(f"gRPC sync disconnected, reconnecting in {retry_delay}s")
             time.sleep(retry_delay)
-            retry_delay = min(2 * retry_delay, self.MAX_BACK_OFF)
+            retry_delay = min(1.1 * retry_delay, self.MAX_BACK_OFF)
 
     def handle_changed_flags(self, data: typing.Any) -> None:
         changed_flags = list(data["flags"].keys())
@@ -184,7 +215,7 @@ class GrpcResolver(AbstractResolver):
             return cached_flag
 
         context = self._convert_context(evaluation_context)
-        call_args = {"timeout": self.config.timeout}
+        call_args = {"timeout": self.deadline}
         try:
             if flag_type == FlagType.BOOLEAN:
                 request = evaluation_pb2.ResolveBooleanRequest(

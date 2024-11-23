@@ -7,8 +7,7 @@ from openfeature.flag_evaluation import FlagResolutionDetails
 
 
 class AbstractResolver(Protocol):
-    def initialize(self, evaluation_context: EvaluationContext) -> None:
-        return
+    def initialize(self, evaluation_context: EvaluationContext) -> None: ...
 
     def shutdown(self) -> None: ...
 

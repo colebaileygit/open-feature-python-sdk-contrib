@@ -88,8 +88,8 @@ def test_flag_disabled():
     assert res.reason == Reason.DISABLED
 
 
-@pytest.mark.parametrize("wait", (0.5, 0.25))
-def test_grpc_sync_fail_deadline(wait: float):
+@pytest.mark.parametrize("wait", (500, 250))
+def test_grpc_sync_fail_deadline(wait: int):
     init_failed = False
 
     def fail(*args, **kwargs):
@@ -103,10 +103,10 @@ def test_grpc_sync_fail_deadline(wait: float):
         FlagdProvider(
             resolver_type=ResolverType.IN_PROCESS,
             port=99999,  # dead port to test failure
-            timeout=wait,
+            deadline=wait,
         )
     )
 
     elapsed = time.time() - t
-    assert abs(elapsed - wait) < 0.1
+    assert abs(elapsed - wait * 0.001) < 0.1
     assert init_failed

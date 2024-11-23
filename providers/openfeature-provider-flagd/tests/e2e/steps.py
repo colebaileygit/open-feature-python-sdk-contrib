@@ -31,8 +31,9 @@ def setup_provider(setup, resolver_type, client_name) -> OpenFeatureClient:
         FlagdProvider(
             resolver_type=resolver_type,
             port=setup,
-            timeout=0.5,
-            retry_backoff_seconds=0.1,
+            deadline=500,
+            stream_deadline_ms=0,
+            retry_backoff_ms=1000,
         ),
         client_name,
     )

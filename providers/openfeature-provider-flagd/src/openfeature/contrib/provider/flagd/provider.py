@@ -21,6 +21,7 @@
 # provider.initialise(schema="https",endpoint="example.com",port=1234,timeout=10)
 """
 
+import logging
 import typing
 
 from openfeature.evaluation_context import EvaluationContext
@@ -43,14 +44,16 @@ class FlagdProvider(AbstractProvider):
         host: typing.Optional[str] = None,
         port: typing.Optional[int] = None,
         tls: typing.Optional[bool] = None,
+        deadline: typing.Optional[int] = None,
         timeout: typing.Optional[int] = None,
-        retry_backoff_seconds: typing.Optional[float] = None,
+        retry_backoff_ms: typing.Optional[int] = None,
         selector: typing.Optional[str] = None,
         resolver_type: typing.Optional[ResolverType] = None,
         offline_flag_source_path: typing.Optional[str] = None,
-        offline_poll_interval_seconds: typing.Optional[float] = None,
         cache_type: typing.Optional[CacheType] = None,
         max_cache_size: typing.Optional[int] = None,
+        stream_deadline_ms: typing.Optional[int] = None,
+        keep_alive_time: typing.Optional[int] = None,
     ):
         """
         Create an instance of the FlagdProvider
@@ -60,18 +63,24 @@ class FlagdProvider(AbstractProvider):
         :param tls: enable/disable secure TLS connectivity
         :param timeout: the maximum to wait before a request times out
         """
+        if deadline is None and timeout is not None:
+            deadline = timeout * 1000
+            logging.info(
+                "'timeout' property is deprecated, please use 'deadline' instead, be aware that 'deadline' is in milliseconds"
+            )
         self.config = Config(
             host=host,
             port=port,
             tls=tls,
-            timeout=timeout,
-            retry_backoff_seconds=retry_backoff_seconds,
+            deadline=deadline,
+            retry_backoff_ms=retry_backoff_ms,
             selector=selector,
             resolver_type=resolver_type,
             offline_flag_source_path=offline_flag_source_path,
-            offline_poll_interval_seconds=offline_poll_interval_seconds,
             cache_type=cache_type,
             max_cache_size=max_cache_size,
+            stream_deadline_ms=stream_deadline_ms,
+            keep_alive_time=keep_alive_time,
         )
 
         self.resolver = self.setup_resolver()

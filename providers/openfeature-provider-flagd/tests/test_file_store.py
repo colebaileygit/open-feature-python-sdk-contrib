@@ -5,6 +5,7 @@ import pytest
 
 from openfeature import api
 from openfeature.contrib.provider.flagd import FlagdProvider
+from openfeature.contrib.provider.flagd.config import Config
 from openfeature.contrib.provider.flagd.resolvers.process.connector.file_watcher import (
     FileWatcher,
 )
@@ -30,7 +31,12 @@ def test_file_load(file_name: str):
     flag_store = FlagStore(emit_provider_configuration_changed)
     path = os.path.abspath(os.path.join(os.path.dirname(__file__), "./flags/"))
     file_watcher = FileWatcher(
-        f"{path}/{file_name}", flag_store, emit_provider_ready, emit_provider_error
+        Config(
+            offline_flag_source_path=f"{path}/{file_name}",
+        ),
+        flag_store,
+        emit_provider_ready,
+        emit_provider_error,
     )
     file_watcher.initialize(None)
 

@@ -6,7 +6,7 @@ def test_return_default_values():
     assert config.host == "localhost"
     assert config.port == 8013
     assert config.tls is False
-    assert config.timeout == 5
+    assert config.deadline == 500
 
 
 def test_overrides_defaults_with_environment(monkeypatch):

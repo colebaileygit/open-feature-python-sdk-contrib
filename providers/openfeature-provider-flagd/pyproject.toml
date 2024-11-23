@@ -64,7 +64,8 @@ output_path = "src"
 exclude = [
   ".gitignore",
   "schemas",
-  "docker-compose.yaml",
+  "test-harness",
+  "spec"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -73,6 +74,6 @@ packages = ["src/openfeature"]
 [tool.coverage.run]
 omit = [
   # exclude generated files
-  "src/openfeature/contrib/provider/flagd/proto/*",
+  "src/schemas/*",
   "tests/**",
 ]

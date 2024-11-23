@@ -29,18 +29,11 @@ class InProcessResolver:
         self.flag_store = FlagStore(emit_provider_configuration_changed)
         self.connector: FlagStateConnector = (
             FileWatcher(
-                self.config.offline_flag_source_path,
-                self.flag_store,
-                emit_provider_ready,
-                emit_provider_error,
-                self.config.offline_poll_interval_seconds,
+                self.config, self.flag_store, emit_provider_ready, emit_provider_error
             )
             if self.config.offline_flag_source_path
             else GrpcWatcher(
-                self.config,
-                self.flag_store,
-                emit_provider_ready,
-                emit_provider_error,
+                self.config, self.flag_store, emit_provider_ready, emit_provider_error
             )
         )
 
@@ -73,6 +66,8 @@ class InProcessResolver:
         evaluation_context: typing.Optional[EvaluationContext] = None,
     ) -> FlagResolutionDetails[float]:
         result = self._resolve(key, default_value, evaluation_context)
+        if isinstance(result.value, int):
+            result.value = float(result.value)
         return result
 
     def resolve_integer_details(

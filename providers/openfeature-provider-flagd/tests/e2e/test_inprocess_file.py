@@ -5,7 +5,7 @@ from os import listdir
 
 import pytest
 import yaml
-from pytest_bdd import given, scenario, scenarios
+from pytest_bdd import given, parsers, scenarios, when
 from tests.e2e.steps import wait_for
 
 from openfeature import api
@@ -21,9 +21,8 @@ KEY_FLAGS = "flags"
 MERGED_FILE = "merged_file"
 
 
-@pytest.fixture(params=["json", "yaml"], scope="module")
-def file_name(request):
-    extension = request.param
+@pytest.fixture(scope="module")
+def all_flags(request):
     result = {KEY_FLAGS: {}, KEY_EVALUATORS: {}}
 
     path = os.path.abspath(
@@ -40,15 +39,43 @@ def file_name(request):
                     **loaded_json[KEY_EVALUATORS],
                 }
 
-    with tempfile.NamedTemporaryFile(
-        "w", delete=False, suffix="." + extension
-    ) as outfile:
-        if extension == "json":
-            json.dump(result, outfile)
-        else:
-            yaml.dump(result, outfile)
+    return result
 
+
+@pytest.fixture(params=["json", "yaml"], scope="module")
+def file_name(request, all_flags):
+    extension = request.param
+    outfile = tempfile.NamedTemporaryFile("w", delete=False, suffix="." + extension)
+    write_test_file(outfile, all_flags)
     return outfile
+
+
+def write_test_file(outfile, all_flags):
+    with open(outfile.name, "w") as file:
+        if file.name.endswith("json"):
+            json.dump(all_flags, file)
+        else:
+            yaml.dump(all_flags, file)
+
+
+@when(
+    parsers.cfparse('a flag with key "{flag_key}" is modified'),
+    target_fixture="changed_flag",
+)
+def changed_flag(
+    flag_key: str,
+    all_flags: dict,
+    file_name,
+):
+    flag = all_flags[KEY_FLAGS][flag_key]
+
+    other_variant = [k for k in flag["variants"] if flag["defaultVariant"] in k].pop()
+
+    flag["defaultVariant"] = other_variant
+
+    all_flags[KEY_FLAGS][flag_key] = flag
+    write_test_file(file_name, all_flags)
+    return flag_key
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -68,8 +95,8 @@ def setup(request, client_name, file_name, resolver_type):
         FlagdProvider(
             resolver_type=resolver_type,
             offline_flag_source_path=file_name.name,
-            timeout=0.5,
-            retry_backoff_seconds=0.1,
+            deadline=500,
+            retry_backoff_ms=100,
         ),
         client_name,
     )
@@ -81,12 +108,6 @@ def setup_provider(client_name) -> OpenFeatureClient:
     client = api.get_client(client_name)
     wait_for(lambda: client.get_provider_status() == ProviderStatus.READY)
     return client
-
-
-@pytest.mark.skip(reason="Eventing not implemented")
-@scenario("../../test-harness/gherkin/flagd.feature", "Flag change event")
-def test_flag_change_event():
-    """not implemented"""
 
 
 scenarios(

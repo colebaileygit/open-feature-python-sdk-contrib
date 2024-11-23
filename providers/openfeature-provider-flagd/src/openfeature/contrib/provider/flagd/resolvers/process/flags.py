@@ -15,7 +15,7 @@ class FlagStore:
         ],
     ):
         self.emit_provider_configuration_changed = emit_provider_configuration_changed
-        self.flags: typing.Mapping[str, "Flag"] = {}
+        self.flags: typing.Mapping[str, Flag] = {}
 
     def get_flag(self, key: str) -> typing.Optional["Flag"]:
         return self.flags.get(key)

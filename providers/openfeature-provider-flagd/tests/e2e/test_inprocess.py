@@ -1,5 +1,5 @@
 import pytest
-from pytest_bdd import scenario, scenarios
+from pytest_bdd import scenarios
 
 from openfeature.contrib.provider.flagd.config import ResolverType
 
@@ -22,12 +22,6 @@ def port():
 @pytest.fixture(autouse=True, scope="module")
 def image():
     return "ghcr.io/open-feature/flagd-testbed:v0.5.13"
-
-
-@pytest.mark.skip(reason="0 float might be a int")
-@scenario("../../test-harness/gherkin/flagd.feature", "Resolves float zero value")
-def test_flag_change_event():
-    """not implemented"""
 
 
 scenarios(
