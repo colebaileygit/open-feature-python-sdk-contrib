@@ -10,12 +10,10 @@ from tests.e2e.parsers import to_bool, to_list
 from openfeature import api
 from openfeature.client import OpenFeatureClient
 from openfeature.contrib.provider.flagd import FlagdProvider
-from openfeature.contrib.provider.flagd.config import ResolverType
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.event import EventDetails, ProviderEvent
+from openfeature.event import ProviderEvent
 from openfeature.flag_evaluation import ErrorCode, FlagEvaluationDetails, Reason
 from openfeature.provider import ProviderStatus
-from tests.e2e.parsers import to_bool, to_list
 
 JsonObject = typing.Union[dict, list]
 JsonPrimitive = typing.Union[str, bool, float, int, JsonObject]
@@ -87,6 +85,16 @@ def setup_key_and_default(
     key: str, default: JsonPrimitive
 ) -> typing.Tuple[str, JsonPrimitive]:
     return (key, default)
+
+
+@when(
+    parsers.cfparse(
+        'a string flag with key "{key}" is evaluated with details',
+    ),
+    target_fixture="key_and_default",
+)
+def setup_key_without_default(key: str) -> typing.Tuple[str, JsonPrimitive]:
+    return setup_key_and_default(key, "")
 
 
 @when(
@@ -534,9 +542,11 @@ def add_event_handler(
 
     client.add_handler(event_type, handler)
 
+
 @pytest.fixture(scope="function")
 def context():
     return {}
+
 
 @when(
     parsers.cfparse(
@@ -643,10 +653,10 @@ def wait_for(pred, poll_sec=2, timeout_sec=10):
 
 
 @given("flagd is unavailable", target_fixture="client")
-def flagd_unavailable():
+def flagd_unavailable(resolver_type):
     api.set_provider(
         FlagdProvider(
-            resolver_type=ResolverType.IN_PROCESS,
+            resolver_type=resolver_type,
             port=99999,
         ),
         "unavailable",

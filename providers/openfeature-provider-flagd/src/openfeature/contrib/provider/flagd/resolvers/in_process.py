@@ -9,8 +9,8 @@ from ..config import Config
 from .process.connector import FlagStateConnector
 from .process.connector.file_watcher import FileWatcher
 from .process.connector.grpc_watcher import GrpcWatcher
-from .process.targeting import targeting
 from .process.flags import FlagStore
+from .process.targeting import targeting
 
 T = typing.TypeVar("T")
 

@@ -1,7 +1,12 @@
 import pytest
-from pytest_bdd import scenario, scenarios
+from pytest_bdd import given, scenarios
+from tests.e2e.steps import wait_for
 
-from openfeature.contrib.provider.flagd.config import ResolverType
+from openfeature import api
+from openfeature.client import OpenFeatureClient
+from openfeature.contrib.provider.flagd import FlagdProvider
+from openfeature.contrib.provider.flagd.config import CacheType, ResolverType
+from openfeature.provider import ProviderStatus
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -24,14 +29,22 @@ def image():
     return "ghcr.io/open-feature/flagd-testbed:v0.5.13"
 
 
-@pytest.mark.skip(reason="Eventing not implemented")
-@scenario("../../test-harness/gherkin/flagd.feature", "Flag change event")
-def test_flag_change_event():
-    """not implemented"""
+@given("a provider is registered with caching", target_fixture="client")
+def setup_caching_provider(setup, resolver_type, client_name) -> OpenFeatureClient:
+    api.set_provider(
+        FlagdProvider(
+            resolver_type=resolver_type, port=setup, cache_type=CacheType.LRU
+        ),
+        client_name,
+    )
+    client = api.get_client(client_name)
+    wait_for(lambda: client.get_provider_status() == ProviderStatus.READY)
+    return client
 
 
 scenarios(
     "../../test-harness/gherkin/flagd.feature",
     "../../test-harness/gherkin/flagd-json-evaluator.feature",
     "../../spec/specification/assets/gherkin/evaluation.feature",
+    "./rpc_cache.feature",
 )
