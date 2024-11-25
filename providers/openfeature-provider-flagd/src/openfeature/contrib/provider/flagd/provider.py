@@ -86,7 +86,7 @@ class FlagdProvider(AbstractProvider):
         self.resolver = self.setup_resolver()
 
     def setup_resolver(self) -> AbstractResolver:
-        if self.config.resolver_type == ResolverType.GRPC:
+        if self.config.resolver_type == ResolverType.RPC:
             return GrpcResolver(
                 self.config,
                 self.emit_provider_ready,

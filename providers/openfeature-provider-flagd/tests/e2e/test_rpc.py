@@ -17,7 +17,7 @@ def client_name() -> str:
 
 @pytest.fixture(autouse=True, scope="module")
 def resolver_type() -> ResolverType:
-    return ResolverType.GRPC
+    return ResolverType.RPC
 
 
 @pytest.fixture(autouse=True, scope="module")

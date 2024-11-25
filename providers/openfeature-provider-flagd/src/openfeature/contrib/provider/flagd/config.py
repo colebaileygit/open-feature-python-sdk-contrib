@@ -37,7 +37,7 @@ def env_or_default(
 
 
 class ResolverType(Enum):
-    GRPC = "grpc"
+    RPC = "rpc"
     IN_PROCESS = "in-process"
 
 
@@ -76,12 +76,12 @@ class Config:
             env_or_default(ENV_VAR_SELECTOR, None) if selector is None else selector
         )
         self.resolver_type = (
-            ResolverType(env_or_default(ENV_VAR_RESOLVER_TYPE, "grpc"))
+            ResolverType(env_or_default(ENV_VAR_RESOLVER_TYPE, "rpc"))
             if resolver_type is None
             else resolver_type
         )
 
-        default_port = 8013 if self.resolver_type is ResolverType.GRPC else 8015
+        default_port = 8013 if self.resolver_type is ResolverType.RPC else 8015
         self.port: int = (
             int(env_or_default(ENV_VAR_PORT, default_port, cast=int))
             if port is None

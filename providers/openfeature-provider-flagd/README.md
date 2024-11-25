@@ -78,27 +78,29 @@ This mode is useful for local development, tests and offline applications.
 
 The default options can be defined in the FlagdProvider constructor.
 
-| Option name              | Environment variable name      | Type & Values | Default   | Compatible resolver |
-|--------------------------|--------------------------------|---------------|-----------|---------------------|
-| resolver_type            | FLAGD_RESOLVER                 | enum          | grpc      |                     |
-| host                     | FLAGD_HOST                     | str           | localhost | rpc & in-process    |
-| port                     | FLAGD_PORT                     | int           | 8013      | rpc & in-process    |
-| tls                      | FLAGD_TLS                      | bool          | false     | rpc & in-process    |
-| deadline                 | FLAGD_DEADLINE_MS              | int           | 500       | rpc & in-process    |
-| stream_deadline_ms       | FLAGD_STREAM_DEADLINE_MS       | int           | 600000    | rpc & in-process    |
-| keep_alive_time          | FLAGD_KEEP_ALIVE_TIME_MS       | int           | 0         | rpc & in-process    |
-| selector                 | FLAGD_SOURCE_SELECTOR          | str           | null      | in-process          |
-| cache_type               | FLAGD_CACHE                    | enum          | lru       | rpc                 |
-| max_cache_size           | FLAGD_MAX_CACHE_SIZE           | int           | 1000      | rpc                 |
-| retry_backoff_ms         | FLAGD_RETRY_BACKOFF_MS         | int           | 1000      | rpc                 |
-| offline_flag_source_path | FLAGD_OFFLINE_FLAG_SOURCE_PATH | str           | null      | in-process          |
+| Option name              | Environment variable name      | Type & Values              | Default                       | Compatible resolver |
+| ------------------------ | ------------------------------ | -------------------------- | ----------------------------- | ------------------- |
+| resolver_type            | FLAGD_RESOLVER                 | enum - `rpc`, `in-process` | rpc                           |                     |
+| host                     | FLAGD_HOST                     | str                        | localhost                     | rpc & in-process    |
+| port                     | FLAGD_PORT                     | int                        | 8013 (rpc), 8015 (in-process) | rpc & in-process    |
+| tls                      | FLAGD_TLS                      | bool                       | false                         | rpc & in-process    |
+| deadline                 | FLAGD_DEADLINE_MS              | int                        | 500                           | rpc & in-process    |
+| stream_deadline_ms       | FLAGD_STREAM_DEADLINE_MS       | int                        | 600000                        | rpc & in-process    |
+| keep_alive_time          | FLAGD_KEEP_ALIVE_TIME_MS       | int                        | 0                             | rpc & in-process    |
+| selector                 | FLAGD_SOURCE_SELECTOR          | str                        | null                          | in-process          |
+| cache_type               | FLAGD_CACHE                    | enum - `lru`, `disabled`   | lru                           | rpc                 |
+| max_cache_size           | FLAGD_MAX_CACHE_SIZE           | int                        | 1000                          | rpc                 |
+| retry_backoff_ms         | FLAGD_RETRY_BACKOFF_MS         | int                        | 1000                          | rpc                 |
+| offline_flag_source_path | FLAGD_OFFLINE_FLAG_SOURCE_PATH | str                        | null                          | in-process          |
 
-<!--
-| target_uri               | FLAGD_TARGET_URI               | str           | null      | rpc & in-process    |
-| socket_path              | FLAGD_SOCKET_PATH              | str           | null      | rpc & in-process    |
-| cert_path                | FLAGD_SERVER_CERT_PATH         | str           | null      | rpc & in-process    |
-| max_event_stream_retries | FLAGD_MAX_EVENT_STREAM_RETRIES | int           | 5         | rpc                 |
--->
+<!-- not implemented
+| target_uri               | FLAGD_TARGET_URI               | alternative to host/port, supporting custom name resolution | string    | null                | rpc & in-process |
+| socket_path              | FLAGD_SOCKET_PATH              | alternative to host port, unix socket                       | String    | null                | rpc & in-process |
+| cert_path                | FLAGD_SERVER_CERT_PATH         | tls cert path                                               | String    | null                | rpc & in-process |
+| max_event_stream_retries | FLAGD_MAX_EVENT_STREAM_RETRIES | int                                                         | 5         | rpc                 |
+| context_enricher         | -                              | sync-metadata to evaluation context mapping function        | function  | identity function   | in-process       |
+| offline_pollIntervalMs   | FLAGD_OFFLINE_POLL_MS          | poll interval for reading offlineFlagSourcePath             | int       | 5000                | in-process       |
+ -->
 
 > [!NOTE]
 > Some configurations are only applicable for RPC resolver.
