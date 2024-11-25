@@ -7,6 +7,9 @@ from tests.e2e.steps import *  # noqa: F403
 
 JsonPrimitive = typing.Union[str, bool, float, int]
 
+TEST_HARNESS_PATH = "../../openfeature/test-harness"
+SPEC_PATH = "../../openfeature/spec"
+
 
 @pytest.fixture(autouse=True, scope="module")
 def setup(request, port, image):

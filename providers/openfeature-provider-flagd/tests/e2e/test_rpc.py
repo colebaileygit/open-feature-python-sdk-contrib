@@ -1,5 +1,6 @@
 import pytest
 from pytest_bdd import given, scenarios
+from tests.e2e.conftest import SPEC_PATH, TEST_HARNESS_PATH
 from tests.e2e.steps import wait_for
 
 from openfeature import api
@@ -43,8 +44,8 @@ def setup_caching_provider(setup, resolver_type, client_name) -> OpenFeatureClie
 
 
 scenarios(
-    "../../test-harness/gherkin/flagd.feature",
-    "../../test-harness/gherkin/flagd-json-evaluator.feature",
-    "../../spec/specification/assets/gherkin/evaluation.feature",
+    f"{TEST_HARNESS_PATH}/gherkin/flagd.feature",
+    f"{TEST_HARNESS_PATH}/gherkin/flagd-json-evaluator.feature",
+    f"{SPEC_PATH}/specification/assets/gherkin/evaluation.feature",
     "./rpc_cache.feature",
 )

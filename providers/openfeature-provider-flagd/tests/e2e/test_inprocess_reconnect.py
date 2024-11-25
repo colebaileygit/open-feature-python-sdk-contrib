@@ -1,5 +1,6 @@
 import pytest
 from pytest_bdd import scenarios
+from tests.e2e.conftest import TEST_HARNESS_PATH
 
 from openfeature.contrib.provider.flagd.config import ResolverType
 
@@ -25,5 +26,5 @@ def image():
 
 
 scenarios(
-    "../../test-harness/gherkin/flagd-reconnect.feature",
+    f"{TEST_HARNESS_PATH}/gherkin/flagd-reconnect.feature",
 )

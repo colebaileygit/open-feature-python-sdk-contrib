@@ -18,9 +18,13 @@ To install Hatch, just run `pip install hatch`.
 
 You will also need to setup the `pre-commit` hooks. Run `pre-commit install` in the root directory of the repository. If you don't have `pre-commit` installed, you can install it with `pip install pre-commit`.
 
+> **Note**
+> Currently our protobuf files will be generated during `hatch build`
+> Please run this command once, to generate all necessary files.
+
 ### Testing
 
-Run tests by entering the package directory and running `hatch run test`.
+Run tests by entering the package directory and running `hatch test`.
 
 We use `pytest` for our unit testing, making use of `parametrized` to inject cases at scale.
 
@@ -50,6 +54,13 @@ Navigate to the repository folder
 cd python-sdk-contrib
 ```
 
+Checkout submodules
+
+```bash
+git submodule update --init --recursive
+```
+
+
 Add your fork as an origin
 
 ```bash
@@ -60,7 +71,8 @@ Ensure your development environment is all set up by building and testing
 
 ```bash
 cd <package>
-hatch run test
+hatch build
+hatch test
 ```
 
 To start working on a new feature or bugfix, create a new branch and start working on it.

@@ -5,14 +5,14 @@ import time
 import typing
 
 import grpc
-from schemas.protobuf.flagd.sync.v1 import (  # type:ignore[import-not-found]
-    sync_pb2,
-    sync_pb2_grpc,
-)
 
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.event import ProviderEventDetails
 from openfeature.exception import ErrorCode, ParseError, ProviderNotReadyError
+from openfeature.schemas.protobuf.flagd.sync.v1 import (  # type:ignore[import-not-found]
+    sync_pb2,
+    sync_pb2_grpc,
+)
 
 from ....config import Config
 from ..connector import FlagStateConnector

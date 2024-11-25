@@ -6,6 +6,7 @@ from os import listdir
 import pytest
 import yaml
 from pytest_bdd import given, parsers, scenarios, when
+from tests.e2e.conftest import SPEC_PATH, TEST_HARNESS_PATH
 from tests.e2e.steps import wait_for
 
 from openfeature import api
@@ -26,7 +27,7 @@ def all_flags(request):
     result = {KEY_FLAGS: {}, KEY_EVALUATORS: {}}
 
     path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../test-harness/flags/")
+        os.path.join(os.path.dirname(__file__), f"{TEST_HARNESS_PATH}/flags/")
     )
 
     for f in listdir(path):
@@ -111,7 +112,7 @@ def setup_provider(client_name) -> OpenFeatureClient:
 
 
 scenarios(
-    "../../test-harness/gherkin/flagd.feature",
-    "../../test-harness/gherkin/flagd-json-evaluator.feature",
-    "../../spec/specification/assets/gherkin/evaluation.feature",
+    f"{TEST_HARNESS_PATH}/gherkin/flagd.feature",
+    f"{TEST_HARNESS_PATH}/gherkin/flagd-json-evaluator.feature",
+    f"{SPEC_PATH}/specification/assets/gherkin/evaluation.feature",
 )
